@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kweekkast Controle</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+        }
+        #sensorData {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<h1>Kweekkast Monitor</h1>
+<div id="sensorData">
+    <p>Temperatuur: <span id="temperatuur">--</span> °C</p>
+    <p>Lichtniveau: <span id="licht">--</span></p>
+</div>
+<div>
+    <button onclick="setVentilator(true)">Ventilator AAN</button>
+    <button onclick="setVentilator(false)">Ventilator UIT</button>
+</div>
+<div>
+    <button onclick="setRgb(255, 0, 0)">Rood</button>
+    <button onclick="setRgb(0, 255, 0)">Groen</button>
+    <button onclick="setRgb(0, 0, 255)">Blauw</button>
+    <button onclick="setRgb(0, 0, 0)">Uit</button>
+</div>
+<script>
+    const mqttClient = new Paho.MQTT.Client("YOUR_MQTT_SERVER_URL", 9001, "webClient"); // WebSocket poort is meestal 9001
+    mqttClient.onMessageArrived = onMessageArrived;
+    mqttClient.onConnectionLost = onConnectionLost;
+
+    mqttClient.connect({
+        onSuccess: onConnect,
+        onFailure: onFail,
+        useSSL: false, // true als je een beveiligde verbinding gebruikt
+        reconnect: true,
+        cleanSession: true
+    });
+
+    function onConnect() {
+        console.log("Connected to MQTT");
+        mqttClient.subscribe("kweekkast/temperatuur");
+        mqttClient.subscribe("kweekkast/licht");
+    }
+
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.log("onConnectionLost:"+responseObject.errorMessage);
+        }
+    }
+
+    function onFail(message) {
+        console.log("Failed to connect: " + message.errorMessage);
+    }
+
+    function onMessageArrived(message) {
+        console.log("Message arrived: " + message.destinationName + " - " + message.payloadString);
+        if (message.destinationName === "kweekkast/temperatuur") {
+            document.getElementById("temperatuur").innerHTML = message.payloadString;
+        } else if (message.destinationName === "kweekkast/licht") {
+            document.getElementById("licht").innerHTML = message.payloadString;
+        }
+    }
+
+    function setVentilator(on) {
+        const payload = on ? "ON" : "OFF";
+        mqttClient.publish("kweekkast/ventilator/set", payload);
+        console.log("Ventilator: " + payload);
+    }
+
+    function setRgb(r, g, b) {
+        const payload = `${r},${g},${b}`;
+        mqttClient.publish("kweekkast/rgb/set", payload);
+        console.log("RGB: " + payload);
+    }
+</script>
+</body>
+</html>
